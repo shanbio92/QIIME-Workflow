@@ -1,0 +1,61 @@
+Workflow for Microbial community analysis from OTU table in QIIME
+
+#1.Merging paired end sequences (R1 &R2 Stiching)
+
+pandaseq -f vki/paleo3/vki_5_R1.fastq" -r vki/paleo3/vki_5_R2.fastq. -w vki/paleo3/merged_reads/vki_5.fasta  ‐g pandaseq_merged_reads/vki_5.log -L  180 -t 0.90
+
+#2.Combining merged reads from different samples into single fasta file
+
+add_qiime_labels.py ‐i  vki/paleo3/merged_reads/ ‐m vkimap.txt ‐c InputFileName ‐n 1 ‐o vki/paleo3/combined_fasta
+
+#3.OTU picking 
+pick_open_reference_otus.py -i  vki/paleo3/combined_fasta/combined_seqs.fna  -o vki/paleo3/picked_otus_default
+
+#4.Remove unwanted sequence from source otu table
+
+filter_taxa_from_otu_table.py  -i  gotu.biom -o decontaminated_otu_table.biom -n c__Chloroplast,k__Archaea,f__mitochondria
+
+#5.Summaries the OTU table 
+
+biom summarize-table -i Paleo3/decontaminated/decontaminated_otu_table.biom -o Paleo3/decontaminated/decontaminated_otu_table.biom_summary.txt
+
+#6.rarefy OTU table to even depth
+single_rarefaction.py -i Paleo3/decontaminated/decontaminated_otu_table.biom -o Paleo3/decontaminated/otu_table_even.biom -d 337128
+
+#7.Alpha diversity Analysis
+
+alpha_diversity.py -i decontaminated_otu_table_even.biom -m ace,chao1,dominance,doubles,goods_coverage,observed_otus,observed_species,simpson_reciprocal,shannon,simpson,simpson_e,singles,strong,PD_whole_tree -o alpha.txt -t 97_otus.tree
+
+#8.Beta Diversity Analysis
+
+beta_diversity.py -i Paleo3/decontaminated/decontaminated_otu_table_even.biom -m bray_curtis,morisita_horn,unifrac,weighted_unifrac -o Paleo3/decontaminated/Diversity/beta_div -t 97_otus.tree
+
+#9.Analyzing Significance of Beta diversity
+
+ beta_significance.py -i Paleo3/decontaminated/decontaminated_otu_table_even.biom -t 97_otus.tree -s unweighted_unifrac -o Paleo3/decontaminated/Diversity/unw_unifrac_sig.txt
+
+#10.Core diversity analysis (performs alpha and beta diversity analysis)
+
+core_diversity_analyses.py -i Paleo3/decontaminated/decontaminated_otu_table_even.biom -o Paleo3/decontaminated/Diversity/core_output -m vkimap.txt  -t 97_otus.tree -e 100000
+
+#11.Sorting OTU table in preferred arrangement of Samples
+
+sort_otu_table.py -i Paleo3/decontaminated/decontaminated_otu_table_even.biom -o Paleo3/decontaminated/decontaminated_otu_table_even_sorted.biom -l order.txt
+
+#12.Summarise Taxa from OTU Table
+
+summarize_taxa.py -i Paleo3/decontaminated/decontaminated_otu_table_even_sorted.biom -o Paleo3/decontaminated/Diversity/tax_summary
+
+#13.Abundance based graphics
+plot_taxa_summary.py -i phylum_abundance.txt -l phylum -c pie,bar,area -o Paleo3/decontaminated/phylum_charts/
+
+#14.FAPROTAX annotation
+
+/usr/bin/python collapse_table.py -i decontaminated_otu_table_even_sorted.biom -o func_table.tsv -g FAPROTAX.txt --collapse_by_metadata 'taxonomy' --output_format_collapsed classical  -v
+
+#15.for checking FAPROTAX assigned function to each taxonomy
+ 
+/usr/bin/python  collapse_table.py -i decontaminated_otu_table_even_sorted.biom -o func_table.biom -g FAPROTAX.txt -r report.txt -v 
+
+#16.Creating input files for Cytoscape
+make_otu_network.py -i Paleo3/decontaminated/100negated/100negated.biom -m vkimap.txt -o Paleo3/decontaminated/100negated/
