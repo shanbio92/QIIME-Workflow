@@ -1,4 +1,4 @@
-Workflow for Microbial community analysis from OTU table in QIIME
+Workflow for Microbial community analysis from FASTA sequences in QIIME
 
 #1.Merging paired end sequences (R1 &R2 Stiching)
 
